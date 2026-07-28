@@ -1,0 +1,10 @@
+# build output - built from source in one command, never commit the binary
+*.exe
+*.pdb
+
+# editors / os
+.vs/
+.idea/
+*.user
+Thumbs.db
+desktop.ini
