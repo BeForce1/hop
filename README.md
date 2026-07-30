@@ -23,8 +23,8 @@ clickable thing gets a letter, type the letter.
                     └─────────────────────────────────────────┘
 ```
 
-macOS has [Homerow](https://homerow.app) for this. Windows has one
-experimental AutoHotkey script. So: a real implementation, in one file.
+macOS has [Homerow](https://homerow.app) for this, paid. Windows has one
+experimental AutoHotkey script. So: a real implementation, free, in one file.
 
 ## Install
 
@@ -112,7 +112,7 @@ with it, Notepad enumerates in 142 ms. There's also a hard 1.5 s budget and a
 
 ## Prior art
 
-- **[Homerow](https://homerow.app)** (macOS) — the thing this imitates. Better polished.
+- **[Homerow](https://homerow.app)** (macOS, paid) — the thing this imitates. Better polished.
 - **[vimium-everywhere](https://github.com/phil294/vimium-everywhere)** — the only comparable
   thing on Windows. An AutoHotkey script its own README calls unstable.
 - **[Vimium](https://vimium.github.io/) / Vimium-C** — same idea, browsers only, excellent at it.
