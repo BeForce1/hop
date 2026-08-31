@@ -5,7 +5,7 @@ clickable thing gets a letter, type the letter.
 
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![build](https://github.com/BeForce1/hop/actions/workflows/build.yml/badge.svg)](https://github.com/BeForce1/hop/actions/workflows/build.yml)
-[![size](https://img.shields.io/badge/binary-16%20KB-brightgreen)](#build)
+[![size](https://img.shields.io/badge/binary-18%20KB-brightgreen)](#build)
 [![deps](https://img.shields.io/badge/dependencies-none-brightgreen)](#build)
 
 <!-- TODO: record a 5s GIF and drop it here. This is the single highest-value thing
@@ -68,10 +68,10 @@ being ambiguous with a label on every keystroke.
 
 `csc.exe` ships **inside Windows** at `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319`,
 so this compiles on a clean machine with nothing installed — no SDK, no NuGet, no
-project file. Output is a 16 KB exe that needs no runtime, because .NET Framework 4.x
-is part of the OS.
+project file. Output is a 17,920-byte exe that needs no runtime, because .NET
+Framework 4.x is part of the OS.
 
-One source file, 371 lines. `build.ps1` is 21 lines.
+One source file, 422 lines. `build.ps1` is 21 lines.
 
 ## See what it finds
 
@@ -115,6 +115,33 @@ The hotkey path has a hard 1.5 s budget and a 484-element cap — past that, tar
 dropped rather than making you wait. `--dump` uses a 5 s budget instead, on the grounds
 that a diagnostic should show you everything it can find.
 
+### Waking Chromium
+
+Chrome, Edge and Electron apps build their renderer accessibility tree lazily, and the
+first UIA query is *itself* what triggers the build — so that first query comes back
+with browser chrome and no page content at all. Measured on a cold Chrome (its own
+`--user-data-dir`, no UIA client had touched it) showing a page with 30 links:
+
+| pass | elements | links |
+|---|---|---|
+| 1 | 13 | 0 |
+| 2, +250 ms | 33 | 20 |
+| 3-12 | 33 | 20 |
+
+So hop checks the window class for `Chrome_WidgetWin_*` and, if not one single target
+landed inside the document's rectangle, sleeps 250 ms and rescans — keeping whichever
+pass found more, so a first scan that ate the whole time budget can never be replaced
+by an empty one.
+
+The trigger is **document emptiness, not a low element count**. A count threshold
+misfires: a small Chrome window that is already awake was measured at 19 targets, so
+anything under 20 would make it pay the delay on every keystroke forever. A
+`ControlType.Document` element is present whether the tree is built or not, which is
+why the test is that the document contains nothing rather than that it is absent.
+
+Measured cost: cold Chrome 498 ms, already-awake Chrome 143-159 ms, non-Chromium
+windows 131-156 ms — unchanged.
+
 ## Prior art
 
 - **[Homerow](https://homerow.app)** (macOS, paid) — the thing this imitates. Better polished.
@@ -129,9 +156,9 @@ If you want this *inside a browser only*, use Vimium. It's better at that than h
 
 Stated up front so nobody has to discover them:
 
-- **Chrome needs its accessibility tree awake.** It builds one lazily when a UIA
-  client asks, so the *first* `Ctrl+Alt+Space` in a Chrome window may find little
-  and the second finds everything. This is the biggest open issue.
+- **A cold Chromium window pays one 250 ms wake**, once, on the first
+  `Ctrl+Alt+Space` after it launches — see [Waking Chromium](#waking-chromium).
+  Already-awake and non-Chromium windows are unaffected.
 - **`ControlType.Custom` is excluded.** Electron apps expose thousands of Custom
   nodes and including them buries the real controls. If something has no label, this
   is usually why.

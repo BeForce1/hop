@@ -24,6 +24,8 @@ static class Native {
     [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
     [DllImport("user32.dll")] public static extern void mouse_event(uint f, int dx, int dy, uint d, IntPtr e);
     [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetClassName(IntPtr h, System.Text.StringBuilder n, int max);
 
     public const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_SHIFT = 0x4;
     public const uint VK_SPACE = 0x20;
@@ -60,12 +62,64 @@ static class Finder {
     public const string Alpha = "fghjklqertyuiopzxcvbnm";
     public const int Cap = 22 * 22;
 
+    // Chrome, Edge and every Electron app use this window class. Measured on a cold
+    // Chrome: the FIRST UIA query returns browser chrome only - 13 elements, zero page
+    // content - and is itself what makes the renderer build its tree. ~250ms later the
+    // same query returns 33 elements and 20 links.
+    static bool IsChromium(IntPtr hwnd) {
+        var sb = new System.Text.StringBuilder(256);
+        try { Native.GetClassName(hwnd, sb, sb.Capacity); } catch { return false; }
+        return sb.ToString().StartsWith("Chrome_WidgetWin");
+    }
+
+    // Trigger on an empty document, not on a low count. A count threshold misfires on
+    // small windows that are already awake - one measured at 19 targets, fully loaded -
+    // and would tax every press. ControlType.Document is present either way, so it is
+    // the document being *empty* that means "not built yet".
+    static bool PageLooksEmpty(IntPtr hwnd, List<Target> ts) {
+        AutomationElement root = null;
+        try { root = AutomationElement.FromHandle(hwnd); } catch { return false; }
+        if (root == null) return false;
+        AutomationElement doc = null;
+        try {
+            doc = root.FindFirst(TreeScope.Descendants,
+                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Document));
+        } catch { }
+        if (doc == null) return false;               // not a page; nothing to wait for
+        System.Windows.Rect r;
+        try { r = doc.Current.BoundingRectangle; } catch { return false; }
+        foreach (var t in ts)
+            if (r.Contains(t.Box.Left + t.Box.Width / 2, t.Box.Top + t.Box.Height / 2)) return false;
+        return true;
+    }
+
+    public const int WakeMs = 250;
+
     public static List<Target> Find(IntPtr hwnd, int cap, int budgetMs, out long ms) {
         var sw = Stopwatch.StartNew();
+        var found = Scan(hwnd, cap, budgetMs, sw);
+
+        // ponytail: one retry, not a loop. Two passes is all the measurement showed was
+        // needed, and a loop here would stall the overlay on a genuinely blank page.
+        if (IsChromium(hwnd) && PageLooksEmpty(hwnd, found)) {
+            System.Threading.Thread.Sleep(WakeMs);
+            // Keep whichever pass found more. The two scans share one stopwatch, so a
+            // first pass that ate the whole budget would leave the retry with none and
+            // return nothing - never let the retry make the answer worse.
+            var again = Scan(hwnd, cap, budgetMs, sw);
+            if (again.Count > found.Count) found = again;
+        }
+
+        Label(found);
+        ms = sw.ElapsedMilliseconds;
+        return found;
+    }
+
+    static List<Target> Scan(IntPtr hwnd, int cap, int budgetMs, Stopwatch sw) {
         var found = new List<Target>();
         AutomationElement root = null;
         try { root = AutomationElement.FromHandle(hwnd); } catch { }
-        if (root == null) { ms = sw.ElapsedMilliseconds; return found; }
+        if (root == null) return found;
 
         Condition kinds = new OrCondition(Kinds.Select(k =>
             (Condition)new PropertyCondition(AutomationElement.ControlTypeProperty, k)).ToArray());
@@ -84,10 +138,11 @@ static class Finder {
         using (cache.Activate()) {
             AutomationElementCollection all = null;
             try { all = root.FindAll(TreeScope.Descendants, cond); } catch { }
-            if (all == null) { ms = sw.ElapsedMilliseconds; return found; }
+            if (all == null) return found;
 
             var seen = new HashSet<string>();
             foreach (AutomationElement e in all) {
+                // budget is measured from the top of Find, so a retry cannot double it
                 if (sw.ElapsedMilliseconds > budgetMs || found.Count >= cap) break;
                 System.Windows.Rect r;
                 try { r = e.Cached.BoundingRectangle; } catch { continue; }
@@ -112,10 +167,7 @@ static class Finder {
             }
         }
 
-        found = found.OrderBy(t => (int)t.Box.Top / 24).ThenBy(t => t.Box.Left).ToList();
-        Label(found);
-        ms = sw.ElapsedMilliseconds;
-        return found;
+        return found.OrderBy(t => (int)t.Box.Top / 24).ThenBy(t => t.Box.Left).ToList();
     }
 
     static void Label(List<Target> ts) {
