@@ -8,9 +8,6 @@ clickable thing gets a letter, type the letter.
 [![size](https://img.shields.io/badge/binary-18%20KB-brightgreen)](#build)
 [![deps](https://img.shields.io/badge/dependencies-none-brightgreen)](#build)
 
-<!-- TODO: record a 5s GIF and drop it here. This is the single highest-value thing
-     left to do for this repo - see "Recording the demo" at the bottom. -->
-
 ```
                     ┌─────────────────────────────────────────┐
    Ctrl+Alt+Space → │  [f] File   [g] Edit   [h] View         │
@@ -60,9 +57,8 @@ Two ways to land on something: **type its label** if you can see it, or **steer*
 you'd rather look than read. The selected target turns green and gets its whole
 control outlined, so you can see exactly what you're about to click.
 
-Labels never use `w a s d` — those steer. That costs 4 of the 26 letters, leaving 22
-single-key labels and then 22x22 = 484 two-key combos, which is the price of WASD not
-being ambiguous with a label on every keystroke.
+Labels never use `w a s d` — those steer. That costs 4 of 26 letters, leaving 22
+single-key labels and 484 two-key ones.
 
 ## Build
 
@@ -87,11 +83,10 @@ hwnd 786950 -> 8 clickable in 126ms
   j   TabItem      [496,-1 480x64]     Yesterday's card prediction
   k   Button       [902,8 64x48]       Close Tab
   l   TabItem      [968,-1 496x64]     Existing branches
-  q   Button       [1382,7 64x48]      Close Tab
   e   SplitButton  [1468,7 126x48]     New Tab
 ```
 
-Useful for filing a bug: run it against the window that misbehaved and paste the output.
+Useful for filing a bug: run it against the window that misbehaved, paste the output.
 
 ## How it clicks
 
@@ -117,30 +112,21 @@ that a diagnostic should show you everything it can find.
 
 ### Waking Chromium
 
-Chrome, Edge and Electron apps build their renderer accessibility tree lazily, and the
-first UIA query is *itself* what triggers the build — so that first query comes back
-with browser chrome and no page content at all. Measured on a cold Chrome (its own
-`--user-data-dir`, no UIA client had touched it) showing a page with 30 links:
+Chrome, Edge and Electron build their accessibility tree lazily, and the first UIA
+query is *itself* what triggers the build — so it returns browser chrome and no page
+content. Measured on a cold Chrome showing 30 links:
 
 | pass | elements | links |
 |---|---|---|
 | 1 | 13 | 0 |
 | 2, +250 ms | 33 | 20 |
-| 3-12 | 33 | 20 |
 
-So hop checks the window class for `Chrome_WidgetWin_*` and, if not one single target
-landed inside the document's rectangle, sleeps 250 ms and rescans — keeping whichever
-pass found more, so a first scan that ate the whole time budget can never be replaced
-by an empty one.
+So on a `Chrome_WidgetWin_*` window, if nothing landed inside the document's rect, hop
+sleeps 250 ms and rescans, keeping whichever pass found more. The trigger is document
+*emptiness* rather than a low count: an already-awake small window measured 19 targets,
+so any threshold would tax it forever.
 
-The trigger is **document emptiness, not a low element count**. A count threshold
-misfires: a small Chrome window that is already awake was measured at 19 targets, so
-anything under 20 would make it pay the delay on every keystroke forever. A
-`ControlType.Document` element is present whether the tree is built or not, which is
-why the test is that the document contains nothing rather than that it is absent.
-
-Measured cost: cold Chrome 498 ms, already-awake Chrome 143-159 ms, non-Chromium
-windows 131-156 ms — unchanged.
+Cost: cold 498 ms, awake 143-159 ms, non-Chromium 131-156 ms — unchanged.
 
 ## Prior art
 
@@ -156,17 +142,13 @@ If you want this *inside a browser only*, use Vimium. It's better at that than h
 
 Stated up front so nobody has to discover them:
 
-- **A cold Chromium window pays one 250 ms wake**, once, on the first
-  `Ctrl+Alt+Space` after it launches — see [Waking Chromium](#waking-chromium).
-  Already-awake and non-Chromium windows are unaffected.
-- **`ControlType.Custom` is excluded.** Electron apps expose thousands of Custom
-  nodes and including them buries the real controls. If something has no label, this
-  is usually why.
-- **Scrollbar parts are excluded.** UIA reports each arrow and the trough as a
-  `Button` parented to a `ScrollBar`, so the trough arrives as one 32x1697 "target"
-  that scrolls rather than clicks. Dropped by `AutomationId` — `VerticalLargeIncrease`
-  and friends, which are not localised. On a plain terminal window that was 3 of 11
-  labels going to things you cannot usefully click.
+- **A cold Chromium window pays one 250 ms wake**, once — see
+  [Waking Chromium](#waking-chromium). Nothing else is affected.
+- **`ControlType.Custom` is excluded.** Electron exposes thousands of them and they
+  bury the real controls. If something has no label, this is usually why.
+- **Scrollbar parts are excluded.** UIA reports the trough as a `Button` — one
+  32x1697 "target" that scrolls rather than clicks. Dropped by `AutomationId`, which
+  is not localised. On a terminal window that was 3 of 11 labels reclaimed.
 - **WASD steers the selection; it does not scroll the page.** Only on-screen controls
   are ever labelled, so anything below the fold is invisible until you scroll there.
 - **Steering is geometric, not tab-order.** Nearest target in the direction pressed,
@@ -174,15 +156,6 @@ Stated up front so nobody has to discover them:
 - **Per-monitor mixed DPI can misplace labels.** `SetProcessDPIAware()` handles
   uniform scaling, not per-monitor v2.
 - **Left click and focus only.** No right-click, no drag, no scroll.
-
-## Recording the demo
-
-The GIF is worth more than everything else in this file. Keep it under 5 seconds:
-
-1. [ScreenToGif](https://www.screentogif.com/) (free, open source), 800 px wide, 15 fps
-2. Open a busy window — Settings, or a file manager
-3. Press the hotkey, pause a beat on the labels, press one letter, done
-4. Save under 2 MB so GitHub inlines it, drop it at the top of this file
 
 ## License
 
