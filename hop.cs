@@ -48,6 +48,13 @@ static class Finder {
         ControlType.ComboBox, ControlType.SplitButton, ControlType.TreeItem
     };
 
+    // Scrollbar arrows and troughs are ControlType.Button parented to a ScrollBar.
+    // The trough is the worst offender: one 32x1697 "target" that scrolls, not clicks.
+    static readonly System.Text.RegularExpressions.Regex ScrollPart =
+        new System.Text.RegularExpressions.Regex(
+            @"^(Vertical|Horizontal)(Small|Large)(Increase|Decrease)$",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+
     // Home row first, but w/a/s/d are deliberately absent: they steer the green
     // selection instead. 22 single-key labels, 484 two-key ones.
     public const string Alpha = "fghjklqertyuiopzxcvbnm";
@@ -72,6 +79,7 @@ static class Finder {
         cache.Add(AutomationElement.BoundingRectangleProperty);
         cache.Add(AutomationElement.NameProperty);
         cache.Add(AutomationElement.ControlTypeProperty);
+        cache.Add(AutomationElement.AutomationIdProperty);
 
         using (cache.Activate()) {
             AutomationElementCollection all = null;
@@ -88,6 +96,14 @@ static class Finder {
                 // Overlapping duplicates are common (a link wrapping its own text).
                 string key = ((int)r.Left) + "," + ((int)r.Top) + "," + ((int)r.Width) + "," + ((int)r.Height);
                 if (!seen.Add(key)) continue;
+
+                // ponytail: AutomationId, not the parent chain - a TreeWalker call per
+                // element is the cross-process cost the CacheRequest exists to avoid.
+                // These ids are XAML/WPF and not localised. Add ClassName=="RepeatButton"
+                // if a Win32 scrollbar ever slips through.
+                string aid = "";
+                try { aid = e.Cached.AutomationId ?? ""; } catch { }
+                if (ScrollPart.IsMatch(aid)) continue;
 
                 string name = "", kind = "";
                 try { name = e.Cached.Name ?? ""; } catch { }
@@ -145,6 +161,12 @@ class Overlay : Form {
     static readonly Color Pick = Color.FromArgb(88, 222, 120);
     static readonly Color Dim = Color.FromArgb(150, 150, 150);
 
+    // One brush each, not one per target per repaint. 484 labels repainting on every
+    // keystroke made that thousands of throwaway GDI+ objects for three colours.
+    static readonly Brush FillB = new SolidBrush(Fill);
+    static readonly Brush PickB = new SolidBrush(Pick);
+    static readonly Brush DimB = new SolidBrush(Dim);
+
     static double Cx(Target t) { return t.Box.Left + t.Box.Width / 2; }
     static double Cy(Target t) { return t.Box.Top + t.Box.Height / 2; }
 
@@ -199,7 +221,7 @@ class Overlay : Form {
                     g.DrawRectangle(pen, x, y, (int)t.Box.Width, (int)t.Box.Height);
             }
 
-            g.FillRectangle(new SolidBrush(picked ? Pick : (live ? Fill : Dim)), x, y, w, h);
+            g.FillRectangle(picked ? PickB : (live ? FillB : DimB), x, y, w, h);
             g.DrawRectangle(Pens.Black, x, y, w, h);
             // typed prefix in grey, the part still to press in black
             if (live && typed.Length > 0) {

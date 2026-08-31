@@ -60,9 +60,9 @@ Two ways to land on something: **type its label** if you can see it, or **steer*
 you'd rather look than read. The selected target turns green and gets its whole
 control outlined, so you can see exactly what you're about to click.
 
-Labels never use `w a s d` — those steer. That costs 3 of 26 single-key labels (22
-remain, then 484 two-key combos), which is the price of WASD not being ambiguous
-with a label on every keystroke.
+Labels never use `w a s d` — those steer. That costs 4 of the 26 letters, leaving 22
+single-key labels and then 22x22 = 484 two-key combos, which is the price of WASD not
+being ambiguous with a label on every keystroke.
 
 ## Build
 
@@ -71,7 +71,7 @@ so this compiles on a clean machine with nothing installed — no SDK, no NuGet,
 project file. Output is a 16 KB exe that needs no runtime, because .NET Framework 4.x
 is part of the OS.
 
-One source file, ~300 lines. `build.ps1` is 21 lines.
+One source file, 371 lines. `build.ps1` is 21 lines.
 
 ## See what it finds
 
@@ -80,13 +80,15 @@ One source file, ~300 lines. `build.ps1` is 21 lines.
 ```
 
 ```
-hwnd 132816 -> 21 clickable in 142ms
-  f   MenuItem     [297,297 44x44]     System
-  g   Button       [1953,295 94x57]    Minimize
-  h   TabItem      [476,312 124x64]    notes.md
-  j   MenuItem     [314,376 82x64]     File
-  k   Button       [1900,376 112x64]   Writing tools
-  l   Button       [1278,1047 323x64]  OK
+hwnd 786950 -> 8 clickable in 126ms
+  f   MenuItem     [0,0 44x44]         System
+  g   TabItem      [16,-1 480x64]      Projects overview
+  h   Button       [422,8 64x48]       Close Tab
+  j   TabItem      [496,-1 480x64]     Yesterday's card prediction
+  k   Button       [902,8 64x48]       Close Tab
+  l   TabItem      [968,-1 496x64]     Existing branches
+  q   Button       [1382,7 64x48]      Close Tab
+  e   SplitButton  [1468,7 126x48]     New Tab
 ```
 
 Useful for filing a bug: run it against the window that misbehaved and paste the output.
@@ -107,8 +109,11 @@ focused, which is why it's tried first.
 
 The one performance trick that matters: a **`CacheRequest`** batches every property
 read into a single cross-process call. Without it, a busy window takes seconds;
-with it, Notepad enumerates in 142 ms. There's also a hard 1.5 s budget and a
-484-element cap — past that, targets are dropped rather than making you wait.
+with it, a live Windows Terminal window enumerates in 126 ms.
+
+The hotkey path has a hard 1.5 s budget and a 484-element cap — past that, targets are
+dropped rather than making you wait. `--dump` uses a 5 s budget instead, on the grounds
+that a diagnostic should show you everything it can find.
 
 ## Prior art
 
@@ -130,6 +135,11 @@ Stated up front so nobody has to discover them:
 - **`ControlType.Custom` is excluded.** Electron apps expose thousands of Custom
   nodes and including them buries the real controls. If something has no label, this
   is usually why.
+- **Scrollbar parts are excluded.** UIA reports each arrow and the trough as a
+  `Button` parented to a `ScrollBar`, so the trough arrives as one 32x1697 "target"
+  that scrolls rather than clicks. Dropped by `AutomationId` — `VerticalLargeIncrease`
+  and friends, which are not localised. On a plain terminal window that was 3 of 11
+  labels going to things you cannot usefully click.
 - **WASD steers the selection; it does not scroll the page.** Only on-screen controls
   are ever labelled, so anything below the fold is invisible until you scroll there.
 - **Steering is geometric, not tab-order.** Nearest target in the direction pressed,
