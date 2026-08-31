@@ -78,11 +78,11 @@ One source file, 422 lines. `build.ps1` is 21 lines.
 ```
 hwnd 786950 -> 8 clickable in 126ms
   f   MenuItem     [0,0 44x44]         System
-  g   TabItem      [16,-1 480x64]      Projects overview
+  g   TabItem      [16,-1 480x64]      pwsh
   h   Button       [422,8 64x48]       Close Tab
-  j   TabItem      [496,-1 480x64]     Yesterday's card prediction
+  j   TabItem      [496,-1 480x64]     bash
   k   Button       [902,8 64x48]       Close Tab
-  l   TabItem      [968,-1 496x64]     Existing branches
+  l   TabItem      [968,-1 496x64]     cmd
   e   SplitButton  [1468,7 126x48]     New Tab
 ```
 
