@@ -34,7 +34,7 @@ git clone https://github.com/BeForce1/hop && cd hop
 ```
 
 Then press **Ctrl+Alt+Space** in any window. A tray icon tells you which hotkey
-bound — it tries five and takes the first one that's free.
+bound: it tries five and takes the first one that's free.
 
 Autostart it:
 
@@ -57,13 +57,13 @@ Two ways to land on something: **type its label** if you can see it, or **steer*
 you'd rather look than read. The selected target turns green and gets its whole
 control outlined, so you can see exactly what you're about to click.
 
-Labels never use `w a s d` — those steer. That costs 4 of 26 letters, leaving 22
+Labels never use `w a s d`; those steer. That costs 4 of 26 letters, leaving 22
 single-key labels and 484 two-key ones.
 
 ## Build
 
 `csc.exe` ships **inside Windows** at `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319`,
-so this compiles on a clean machine with nothing installed — no SDK, no NuGet, no
+so this compiles on a clean machine with nothing installed: no SDK, no NuGet, no
 project file. Output is a 17,920-byte exe that needs no runtime, because .NET
 Framework 4.x is part of the OS.
 
@@ -92,11 +92,11 @@ Useful for filing a bug: run it against the window that misbehaved, paste the ou
 
 UI Automation first, synthetic mouse last:
 
-1. `Edit` controls get `SetFocus()` — you want the caret, not a click
-2. `InvokePattern` — buttons, links, menu items
-3. `TogglePattern` — checkboxes
-4. `ExpandCollapsePattern` — combo boxes, tree nodes
-5. `SelectionItemPattern` — list items, tabs
+1. `Edit` controls get `SetFocus()`: you want the caret, not a click
+2. `InvokePattern`: buttons, links, menu items
+3. `TogglePattern`: checkboxes
+4. `ExpandCollapsePattern`: combo boxes, tree nodes
+5. `SelectionItemPattern`: list items, tabs
 6. Otherwise: move the cursor and click for real
 
 Pattern invocation doesn't move your mouse and works even when the window isn't
@@ -106,14 +106,14 @@ The one performance trick that matters: a **`CacheRequest`** batches every prope
 read into a single cross-process call. Without it, a busy window takes seconds;
 with it, a live Windows Terminal window enumerates in 126 ms.
 
-The hotkey path has a hard 1.5 s budget and a 484-element cap — past that, targets are
+The hotkey path has a hard 1.5 s budget and a 484-element cap. Past that, targets are
 dropped rather than making you wait. `--dump` uses a 5 s budget instead, on the grounds
 that a diagnostic should show you everything it can find.
 
 ### Waking Chromium
 
 Chrome, Edge and Electron build their accessibility tree lazily, and the first UIA
-query is *itself* what triggers the build — so it returns browser chrome and no page
+query is *itself* what triggers the build, so it returns browser chrome and no page
 content. Measured on a cold Chrome showing 30 links:
 
 | pass | elements | links |
@@ -126,15 +126,15 @@ sleeps 250 ms and rescans, keeping whichever pass found more. The trigger is doc
 *emptiness* rather than a low count: an already-awake small window measured 19 targets,
 so any threshold would tax it forever.
 
-Cost: cold 498 ms, awake 143-159 ms, non-Chromium 131-156 ms — unchanged.
+Cost: cold 498 ms, awake 143-159 ms, non-Chromium 131-156 ms (unchanged).
 
 ## Prior art
 
-- **[Homerow](https://homerow.app)** (macOS, paid) — the thing this imitates. Better polished.
-- **[vimium-everywhere](https://github.com/phil294/vimium-everywhere)** — the only comparable
+- **[Homerow](https://homerow.app)** (macOS, paid): the thing this imitates. Better polished.
+- **[vimium-everywhere](https://github.com/phil294/vimium-everywhere)**: the only comparable
   thing on Windows. An AutoHotkey script its own README calls unstable.
-- **[Vimium](https://vimium.github.io/) / Vimium-C** — same idea, browsers only, excellent at it.
-- **PowerToys Mouse Jump** — teleports the cursor to a screen region. Different problem.
+- **[Vimium](https://vimium.github.io/) / Vimium-C**: same idea, browsers only, excellent at it.
+- **PowerToys Mouse Jump** teleports the cursor to a screen region. Different problem.
 
 If you want this *inside a browser only*, use Vimium. It's better at that than hop is.
 
@@ -142,11 +142,11 @@ If you want this *inside a browser only*, use Vimium. It's better at that than h
 
 Stated up front so nobody has to discover them:
 
-- **A cold Chromium window pays one 250 ms wake**, once — see
+- **A cold Chromium window pays one 250 ms wake**, once. See
   [Waking Chromium](#waking-chromium). Nothing else is affected.
 - **`ControlType.Custom` is excluded.** Electron exposes thousands of them and they
   bury the real controls. If something has no label, this is usually why.
-- **Scrollbar parts are excluded.** UIA reports the trough as a `Button` — one
+- **Scrollbar parts are excluded.** UIA reports the trough as a `Button`, one
   32x1697 "target" that scrolls rather than clicks. Dropped by `AutomationId`, which
   is not localised. On a terminal window that was 3 of 11 labels reclaimed.
 - **WASD steers the selection; it does not scroll the page.** Only on-screen controls
@@ -159,4 +159,4 @@ Stated up front so nobody has to discover them:
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
