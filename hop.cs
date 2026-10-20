@@ -1,5 +1,5 @@
 // hop - press a hotkey, every clickable thing gets a letter, type it to click.
-// A Windows take on Homerow (macOS, $30). One file, no dependencies, no installer.
+// A Windows take on Homerow (macOS, paid). One file, no dependencies, no installer.
 //
 //   build:  .\build.ps1
 //   run:    hop.exe              Ctrl+Alt+Space to label, Esc to cancel
@@ -26,6 +26,9 @@ static class Native {
     [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern int GetClassName(IntPtr h, System.Text.StringBuilder n, int max);
+    [DllImport("kernel32.dll")] public static extern bool AttachConsole(int pid);
+    [DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int which);
+    public const int ATTACH_PARENT_PROCESS = -1, STD_OUTPUT_HANDLE = -11;
 
     public const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_SHIFT = 0x4;
     public const uint VK_SPACE = 0x20;
@@ -374,15 +377,22 @@ class Host : Form {
     }
 
     void Fire() {
-        var target = Native.GetForegroundWindow();
-        long ms;
-        var found = Finder.Find(target, Finder.Cap, 1500, out ms);
-        if (found.Count == 0) { tray.Text = "hop " + hotkey + " - nothing found (" + ms + "ms)"; return; }
-        tray.Text = "hop " + hotkey + " - " + found.Count + " targets (" + ms + "ms)";
-
+        // showing is reset in finally: one exception in the overlay used to leave it true,
+        // and every later hotkey press was silently ignored until hop was restarted
         showing = true;
-        using (var o = new Overlay(found, target)) { o.ShowDialog(); }
-        showing = false;
+        try {
+            var target = Native.GetForegroundWindow();
+            long ms;
+            var found = Finder.Find(target, Finder.Cap, 1500, out ms);
+            if (found.Count == 0) { tray.Text = "hop " + hotkey + " - nothing found (" + ms + "ms)"; return; }
+            tray.Text = "hop " + hotkey + " - " + found.Count + " targets (" + ms + "ms)";
+            using (var o = new Overlay(found, target)) { o.ShowDialog(); }
+        } catch (Exception ex) {
+            var msg = "hop " + hotkey + " - error: " + ex.GetType().Name;
+            tray.Text = msg.Length > 63 ? msg.Substring(0, 63) : msg;   // NotifyIcon throws past 63 chars
+        } finally {
+            showing = false;
+        }
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e) {
@@ -398,7 +408,15 @@ static class Program {
         Native.SetProcessDPIAware();   // UIA reports physical pixels; without this labels land wrong
 
         if (args.Length > 0 && args[0] == "--dump") {
-            int wait = args.Length > 1 ? int.Parse(args[1]) : 0;
+            // a winexe has no console of its own: unless output is piped, borrow the
+            // terminal's, or `hop.exe --dump` typed straight into PowerShell prints nothing
+            if (Native.GetStdHandle(Native.STD_OUTPUT_HANDLE) == IntPtr.Zero)
+                Native.AttachConsole(Native.ATTACH_PARENT_PROCESS);
+            int wait = 0;
+            if (args.Length > 1 && !int.TryParse(args[1], out wait)) {
+                Console.WriteLine("usage: hop.exe --dump [seconds]");
+                return;
+            }
             if (wait > 0) {
                 Console.WriteLine("focus the window you want, waiting " + wait + "s...");
                 System.Threading.Thread.Sleep(wait * 1000);
@@ -415,8 +433,13 @@ static class Program {
             return;
         }
 
-        Application.EnableVisualStyles();
-        Application.Run(new Host());
+        // A second copy would grab the next free fallback hotkey and both would answer.
+        bool fresh;
+        using (new System.Threading.Mutex(true, "hop.SingleInstance", out fresh)) {
+            if (!fresh) return;
+            Application.EnableVisualStyles();
+            Application.Run(new Host());
+        }
     }
 }
 }

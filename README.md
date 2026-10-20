@@ -25,7 +25,7 @@ experimental AutoHotkey script. So: a real implementation, free, in one file.
 
 ## Install
 
-No installer, no runtime, no admin:
+Download `hop.exe` from [Releases](https://github.com/BeForce1/hop/releases) and run it. No installer, no runtime and no admin rights needed. To build it yourself instead:
 
 ```powershell
 git clone https://github.com/BeForce1/hop && cd hop
@@ -64,15 +64,15 @@ single-key labels and 484 two-key ones.
 
 `csc.exe` ships **inside Windows** at `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319`,
 so this compiles on a clean machine with nothing installed: no SDK, no NuGet, no
-project file. Output is a 17,920-byte exe that needs no runtime, because .NET
+project file. Output is an 18,432-byte exe that needs no runtime, because .NET
 Framework 4.x is part of the OS.
 
-One source file, 422 lines. `build.ps1` is 21 lines.
+One source file, 445 lines. `build.ps1` is 21 lines.
 
 ## See what it finds
 
 ```powershell
-.\hop.exe --dump 3      # focus a window, wait 3s, print every target detected
+.\hop.exe --dump 3 | Out-Host   # focus a window, wait 3s, print every target detected
 ```
 
 ```
@@ -87,6 +87,7 @@ hwnd 786950 -> 8 clickable in 126ms
 ```
 
 Useful for filing a bug: run it against the window that misbehaved, paste the output.
+The `| Out-Host` makes PowerShell wait for the output. Without it the prompt comes back first and the list prints over it.
 
 ## How it clicks
 
@@ -128,6 +129,16 @@ so any threshold would tax it forever.
 
 Cost: cold 498 ms, awake 143-159 ms, non-Chromium 131-156 ms (unchanged).
 
+## Requirements
+
+- **System:** Windows 10 or 11. It needs .NET Framework 4.x, which ships with Windows.
+- **CPU:** 0% while idle. It only works when you press the hotkey.
+- **Memory:** about 23 MB while idle, almost all of it the .NET Framework runtime.
+- **Disk:** one 18 KB `.exe`.
+- **Startup:** about 55 ms.
+
+Measured on Windows 11 with .NET Framework 4.8.1: 30 s idle sample, 5 launches.
+
 ## Prior art
 
 - **[Homerow](https://homerow.app)** (macOS, paid): the thing this imitates. Better polished.
@@ -156,6 +167,9 @@ Stated up front so nobody has to discover them:
 - **Per-monitor mixed DPI can misplace labels.** `SetProcessDPIAware()` handles
   uniform scaling, not per-monitor v2.
 - **Left click and focus only.** No right-click, no drag, no scroll.
+- **Windows running as administrator can't be read** (Task Manager, Registry Editor, elevated
+  terminals) unless hop also runs as administrator. Windows blocks UI Automation across
+  that boundary, so the hotkey finds nothing there.
 
 ## License
 
