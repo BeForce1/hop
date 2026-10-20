@@ -20,8 +20,9 @@ clickable thing gets a letter, type the letter.
                     └─────────────────────────────────────────┘
 ```
 
-macOS has [Homerow](https://homerow.app) for this, paid. Windows has one
-experimental AutoHotkey script. So: a real implementation, free, in one file.
+macOS has [Homerow](https://homerow.app) for this, paid. On Windows,
+[hunt-n-peck](https://github.com/zsims/hunt-and-peck) and [keyhop](https://crates.io/crates/keyhop)
+do similar things. hop is the tiny one: a single file, an 18 KB exe, and arrow-key steering.
 
 ## Install
 
@@ -142,8 +143,10 @@ Measured on Windows 11 with .NET Framework 4.8.1: 30 s idle sample, 5 launches.
 ## Prior art
 
 - **[Homerow](https://homerow.app)** (macOS, paid): the thing this imitates. Better polished.
-- **[vimium-everywhere](https://github.com/phil294/vimium-everywhere)**: the only comparable
-  thing on Windows. An AutoHotkey script its own README calls unstable.
+- **[hunt-n-peck](https://github.com/zsims/hunt-and-peck)** (Windows): the same idea on UI Automation, around for years.
+- **[keyhop](https://crates.io/crates/keyhop)** (Windows, Rust): hint labels over every clickable thing, home-row alphabet.
+- **[vimium-everywhere](https://github.com/phil294/vimium-everywhere)** (Windows): an AutoHotkey
+  script its own README calls unstable.
 - **[Vimium](https://vimium.github.io/) / Vimium-C**: same idea, browsers only, excellent at it.
 - **PowerToys Mouse Jump** teleports the cursor to a screen region. Different problem.
 

@@ -26,6 +26,10 @@ static class Native {
     [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern int GetClassName(IntPtr h, System.Text.StringBuilder n, int max);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
+    [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint from, uint to, bool attach);
+    [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
+    [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
     [DllImport("kernel32.dll")] public static extern bool AttachConsole(int pid);
     [DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int which);
     public const int ATTACH_PARENT_PROCESS = -1, STD_OUTPUT_HANDLE = -11;
@@ -292,7 +296,7 @@ class Overlay : Form {
 
     protected override void OnKeyDown(KeyEventArgs e) {
         switch (e.KeyCode) {
-            case Keys.Escape: Close(); return;
+            case Keys.Escape: Close(); Native.SetForegroundWindow(owner); return;   // hand focus back, not to hop's hidden window
             case Keys.Back:
                 if (typed.Length > 0) { typed = typed.Substring(0, typed.Length - 1); Invalidate(); }
                 e.Handled = true; return;
@@ -317,6 +321,23 @@ class Overlay : Form {
         if (hit != null) { Close(); Finder.Activate(hit, owner); return; }
         if (!all.Any(t => t.Label.StartsWith(typed))) typed = "";   // dead end, start over
         Invalidate();
+    }
+
+    // Windows' foreground lock keeps a background tray app from taking focus, so the
+    // overlay used to appear with the keyboard still going to the window underneath:
+    // letters drawn, typing ignored, and no Deactivate to ever close it. Sharing the
+    // foreground thread's input state for a moment lets SetForegroundWindow through.
+    protected override void OnShown(EventArgs e) {
+        base.OnShown(e);
+        uint fg = Native.GetWindowThreadProcessId(Native.GetForegroundWindow(), IntPtr.Zero);
+        uint me = Native.GetCurrentThreadId();
+        bool attached = fg != 0 && fg != me && Native.AttachThreadInput(me, fg, true);
+        Native.BringWindowToTop(Handle);
+        Native.SetForegroundWindow(Handle);
+        Activate();
+        if (attached) Native.AttachThreadInput(me, fg, false);
+        // still not ours: close rather than strand a full-screen overlay nobody can dismiss
+        if (Native.GetForegroundWindow() != Handle) Close();
     }
 
     protected override void OnDeactivate(EventArgs e) { Close(); }
