@@ -6,6 +6,10 @@ on:
     tags: ['v*']
   pull_request:
 
+# the Release step creates GitHub releases, which the default read-only token cannot
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
