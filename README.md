@@ -65,7 +65,7 @@ single-key labels and 484 two-key ones.
 
 `csc.exe` ships **inside Windows** at `%WINDIR%\Microsoft.NET\Framework64\v4.0.30319`,
 so this compiles on a clean machine with nothing installed: no SDK, no NuGet, no
-project file. Output is an 18,432-byte exe that needs no runtime, because .NET
+project file. Output is an 18,944-byte exe that needs no runtime, because .NET
 Framework 4.x is part of the OS.
 
 One source file, 445 lines. `build.ps1` is 21 lines.
